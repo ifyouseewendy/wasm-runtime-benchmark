@@ -7,3 +7,12 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+# wasmer-singlepass-backend = "0.15.0"
+# wasmer-clif-backend = "0.15.0"
+# wasmer-llvm-backend = { version = "0.15.0", path = "/home/vagrant/wasmer/lib/llvm-backend" }
+
+[dependencies.wasmer-runtime]
+version = "0.15.0"
+path = "/home/vagrant/wasmer/lib/runtime"
+default-features = false
+features = ["singlepass", "cranelift", "llvm", "default-backend-singlepass"]
