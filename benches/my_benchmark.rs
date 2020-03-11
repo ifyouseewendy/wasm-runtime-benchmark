@@ -25,12 +25,19 @@ fn wasmer_aot_with_cranelift(c: &mut Criterion) {
         b.iter(|| wasmer_runner::aot_with_cranelift(&key, black_box(20)))
     });
 }
+fn wasmer_aot_with_llvm(c: &mut Criterion) {
+    let key = wasmer_runner::store_with_llvm("./fibonacci.wasm").unwrap();
+
+    c.bench_function("aot with llvm", |b| {
+        b.iter(|| wasmer_runner::aot_with_llvm(&key, black_box(20)))
+    });
+}
 
 criterion_group!(
     benches,
     wasmer_aot_with_cranelift,
     wasmer_aot_with_singlepass,
-    wasmer_jit_with_cranelift,
-    wasmer_jit_with_singlepass
+    wasmer_aot_with_llvm // wasmer_jit_with_cranelift,
+                         // wasmer_jit_with_singlepass
 );
 criterion_main!(benches);
