@@ -1,4 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use wasm_runtime_benchmark::lucet_runner;
 use wasm_runtime_benchmark::wasmer_runner;
 
 fn wasmer_jit_with_singlepass(c: &mut Criterion) {
@@ -33,8 +34,17 @@ fn wasmer_aot_with_llvm(c: &mut Criterion) {
     });
 }
 
+fn lucet_aot(c: &mut Criterion) {
+    let file = "fibonacci.so";
+
+    c.bench_function("aot lucet", |b| {
+        b.iter(|| lucet_runner::run(file, black_box(20)))
+    });
+}
+
 criterion_group!(
     benches,
+    lucet_aot,
     wasmer_aot_with_cranelift,
     wasmer_aot_with_singlepass,
     wasmer_aot_with_llvm // wasmer_jit_with_cranelift,
