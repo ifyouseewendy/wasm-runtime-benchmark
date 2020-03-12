@@ -1,193 +1,133 @@
-use wasmer_runtime::cache::{Cache, FileSystemCache, WasmHash};
-use wasmer_runtime::{compile_with, error, imports, instantiate, Func, Module};
+use wasmer_runtime::{
+    cache::{Cache, FileSystemCache, WasmHash},
+    compile_with, compiler_for_backend, error, imports, Backend, Func, Instance,
+};
 
-// Singlepass
-pub fn jit_with_singlepass(file: &str, arg: u32) -> error::Result<u32> {
-    jit(wasmer_runtime::Backend::Singlepass, file, arg)
-}
-pub fn store_with_singlepass(file: &str) -> Result<String, error::CacheError> {
-    store_module(wasmer_runtime::Backend::Singlepass, file)
-}
-pub fn aot_with_singlepass(key: &str, arg: u32) -> error::Result<u32> {
-    aot(wasmer_runtime::Backend::Singlepass, key, arg)
+struct Wrapper {
+    pub backend: Backend,
 }
 
-// Cranelift
-pub fn jit_with_cranelift(file: &str, arg: u32) -> error::Result<u32> {
-    jit(wasmer_runtime::Backend::Cranelift, file, arg)
+#[derive(Debug)]
+pub enum AotError {
+    Error(wasmer_runtime::error::Error),
+    CacheError(wasmer_runtime::error::CacheError),
+    CompileError(wasmer_runtime::error::CompileError),
+    IOError(std::io::Error),
 }
-pub fn store_with_cranelift(file: &str) -> Result<String, error::CacheError> {
-    store_module(wasmer_runtime::Backend::Cranelift, file)
-}
-pub fn aot_with_cranelift(key: &str, arg: u32) -> error::Result<u32> {
-    aot(wasmer_runtime::Backend::Cranelift, key, arg)
-}
+pub type AotResult<T> = std::result::Result<T, AotError>;
 
-// LLVM
-pub fn jit_with_llvm(file: &str, arg: u32) -> error::Result<u32> {
-    jit(wasmer_runtime::Backend::LLVM, file, arg)
+impl std::convert::From<std::io::Error> for AotError {
+    fn from(e: std::io::Error) -> Self {
+        Self::IOError(e)
+    }
 }
-pub fn store_with_llvm(file: &str) -> Result<String, error::CacheError> {
-    store_module(wasmer_runtime::Backend::LLVM, file)
+impl std::convert::From<wasmer_runtime::error::Error> for AotError {
+    fn from(e: wasmer_runtime::error::Error) -> Self {
+        Self::Error(e)
+    }
 }
-pub fn aot_with_llvm(key: &str, arg: u32) -> error::Result<u32> {
-    aot(wasmer_runtime::Backend::LLVM, key, arg)
+impl std::convert::From<wasmer_runtime::error::CacheError> for AotError {
+    fn from(e: wasmer_runtime::error::CacheError) -> Self {
+        Self::CacheError(e)
+    }
 }
-
-pub fn jit(backend: wasmer_runtime::Backend, file: &str, arg: u32) -> error::Result<u32> {
-    let key = store_module(backend, file).unwrap();
-    // println!("key is {:?}", &key);
-
-    let module = load_module(backend, &key).unwrap();
-
-    let import_object = imports! {};
-    let instance = module.instantiate(&import_object)?;
-    let run: Func<u32, u32> = instance.func("ext_run")?;
-    let v = run.call(arg)?;
-    Ok(v)
-}
-pub fn aot(backend: wasmer_runtime::Backend, key: &str, arg: u32) -> error::Result<u32> {
-    let module = load_module(backend, key).unwrap();
-
-    let import_object = imports! {};
-    let instance = module.instantiate(&import_object)?;
-    let run: Func<u32, u32> = instance.func("ext_run")?;
-    let v = run.call(arg)?;
-    Ok(v)
+impl std::convert::From<wasmer_runtime::error::CompileError> for AotError {
+    fn from(e: wasmer_runtime::error::CompileError) -> Self {
+        Self::CompileError(e)
+    }
 }
 
-pub fn store_module(
-    backend: wasmer_runtime::Backend,
-    file: &str,
-) -> Result<String, error::CacheError> {
-    // let wasm_bytes = include_bytes!(file.to_own());
+impl Wrapper {
+    // should take &[u8] instead of a file
+    pub fn jit(&self, wasm_bytes: &[u8], arg: u32) -> error::Result<u32> {
+        let compiler = compiler_for_backend(self.backend).unwrap();
+        let module = compile_with(wasm_bytes, compiler.as_ref()).unwrap();
 
-    let wasm_bytes = std::fs::read(std::path::Path::new(file)).unwrap();
+        let import_object = imports! {};
+        let instance = module.instantiate(&import_object)?;
 
-    let compiler = wasmer_runtime::compiler_for_backend(backend).unwrap();
-    let module = compile_with(&wasm_bytes, compiler.as_ref()).unwrap();
+        let run: Func<u32, u32> = instance.func("ext_run")?;
+        let v = run.call(arg)?;
+        Ok(v)
+    }
 
-    // Create a new file system cache.
-    // This is unsafe because we can't ensure that the artifact wasn't
-    // corrupted or tampered with.
-    let mut fs_cache = unsafe { FileSystemCache::new("./tmp/")? };
+    pub fn aot_c(&self, wasm_bytes: &[u8]) -> AotResult<String> {
+        let compiler = wasmer_runtime::compiler_for_backend(self.backend).unwrap();
+        let module = compile_with(&wasm_bytes, compiler.as_ref())?;
 
-    let artifact = module.cache().unwrap();
-    let key = WasmHash::generate(&artifact.serialize().unwrap());
-    // Store a module into the cache given a key
-    fs_cache.store(key, module.clone())?;
-    Ok(key.encode())
+        let mut fs_cache = unsafe { FileSystemCache::new("./tmp/")? };
+        let artifact = module.cache()?;
+        let key = WasmHash::generate(&artifact.serialize()?);
+
+        fs_cache.store(key, module.clone())?;
+        Ok(key.encode())
+    }
+
+    pub fn aot_e(&self, key: &str, arg: u32) -> AotResult<u32> {
+        let fs_cache = unsafe { FileSystemCache::new("./tmp/")? };
+        let module = fs_cache
+            .load_with_backend(WasmHash::decode(key).unwrap(), self.backend)
+            .unwrap();
+
+        let import_object = imports! {};
+        let instance = module.instantiate(&import_object).unwrap();
+
+        let run: Func<u32, u32> = instance.func("ext_run").unwrap();
+        let v = run.call(arg).unwrap();
+        Ok(v)
+    }
+
+    pub fn aot_t(&self, wasm_bytes: &[u8], arg: u32) -> AotResult<u32> {
+        let key = self.aot_c(wasm_bytes)?;
+        self.aot_e(&key, arg)
+    }
+
+    pub fn prepare(&self, wasm_bytes: &[u8]) -> error::Result<Instance> {
+        let compiler = compiler_for_backend(self.backend).unwrap();
+        let module = compile_with(&wasm_bytes, compiler.as_ref()).unwrap();
+
+        let import_object = imports! {};
+        let instance = module.instantiate(&import_object)?;
+
+        Ok(instance)
+    }
+
+    pub fn execute(&self, instance: Instance, arg: u32) -> error::Result<u32> {
+        let func: Func<u32, u32> = instance.func("ext_run")?;
+        let v = func.call(arg)?;
+        Ok(v)
+    }
 }
-
-fn load_module(backend: wasmer_runtime::Backend, key: &str) -> Result<Module, error::CacheError> {
-    let fs_cache = unsafe { FileSystemCache::new("./tmp/")? };
-    fs_cache.load_with_backend(WasmHash::decode(key).unwrap(), backend)
-}
-
-// jit_with_singlepass measures the whole process of compilation and execution
-// aot_with_singlepass measures the execution of pre-compiled machine code
-
-// pub fn with_cranelift(num: u32) -> error::Result<()> {
-//     let wasm_bytes = include_bytes!("../fibonacci.wasm");
-//     let module = compile_with(wasm_bytes, &CraneliftCompiler::new()).unwrap();
-//     let import_object = imports! {};
-//     let instance = module.instantiate(&import_object)?;
-//     let run: Func<u32, u32> = instance.func("ext_run")?;
-//     let _ = run.call(num)?;
-//     Ok(())
-// }
-//
-// pub fn with_singlepass(num: u32) -> error::Result<()> {
-//     let wasm_bytes = include_bytes!("../fibonacci.wasm");
-//     let module = compile_with(wasm_bytes, &SinglePassCompiler::new()).unwrap();
-//     let import_object = imports! {};
-//     let instance = module.instantiate(&import_object)?;
-//     let run: Func<u32, u32> = instance.func("ext_run")?;
-//     let _ = run.call(num)?;
-//     Ok(())
-// }
-
-// rename to jit_with_llvm
-// pub fn with_llvm(num: u32) -> error::Result<()> {
-//     let wasm_bytes = include_bytes!("../fibonacci.wasm");
-//     let module = compile(wasm_bytes).unwrap();
-//
-//     let import_object = imports! {};
-//     let instance = module.instantiate(&import_object)?;
-//     let run: Func<u32, u32> = instance.func("ext_run")?;
-//     let _ = run.call(num)?;
-//     Ok(())
-// }
-//
-// pub fn aot_with_llvm(num: u32, key: &str) -> error::Result<u32> {
-//     let module = load_module(key).unwrap();
-//
-//     let import_object = imports! {};
-//     let instance = module.instantiate(&import_object)?;
-//     let run: Func<u32, u32> = instance.func("ext_run")?;
-//     let v = run.call(num)?;
-//     Ok(v)
-// }
-//
-// pub fn store_module() -> Result<String, error::CacheError> {
-//     let wasm_bytes = include_bytes!("../fibonacci.wasm");
-//     let module = compile(wasm_bytes).unwrap();
-//
-//     // Create a new file system cache.
-//     // This is unsafe because we can't ensure that the artifact wasn't
-//     // corrupted or tampered with.
-//     let mut fs_cache = unsafe { FileSystemCache::new("./tmp/")? };
-//     // Compute a key for a given WebAssembly binary
-//
-//     let artifact = module.cache().unwrap();
-//     let key = WasmHash::generate(&artifact.serialize().unwrap());
-//     // Store a module into the cache given a key
-//     fs_cache.store(key, module.clone())?;
-//     Ok(key.encode())
-// }
-//
-// fn load_module(key: &str) -> Result<Module, error::CacheError> {
-//     let fs_cache = unsafe { FileSystemCache::new("./tmp/")? };
-//     fs_cache.load(WasmHash::decode(key).unwrap())
-// }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_jit_with_singlepass() {
-        let v = jit_with_singlepass("./fibonacci.wasm", 10).unwrap();
-        println!("Result is {}", v);
+    fn wasm_bytes() -> Vec<u8> {
+        std::fs::read(std::path::Path::new("./fibonacci.wasm")).unwrap()
     }
-    #[test]
-    fn test_aot_with_singlepass() {
-        let key = store_with_singlepass("./fibonacci.wasm").unwrap();
-        let v = aot_with_singlepass(&key, 10).unwrap();
-        println!("Result is {}", v);
+
+    fn wrapper() -> Wrapper {
+        Wrapper {
+            backend: Backend::Singlepass,
+        }
     }
 
     #[test]
-    fn test_jit_with_cranelift() {
-        let v = jit_with_cranelift("./fibonacci.wasm", 10).unwrap();
-        println!("Result is {}", v);
+    fn test_jit() {
+        let v = wrapper().jit(&wasm_bytes(), 5).unwrap();
+        assert_eq!(v, 8);
     }
     #[test]
-    fn test_aot_with_cranelift() {
-        let key = store_with_cranelift("./fibonacci.wasm").unwrap();
-        let v = aot_with_cranelift(&key, 10).unwrap();
-        println!("Result is {}", v);
-    }
-
-    #[test]
-    fn test_jit_with_llvm() {
-        let v = jit_with_llvm("./fibonacci.wasm", 10).unwrap();
-        println!("Result is {}", v);
+    fn test_aot_t() {
+        let v = wrapper().aot_t(&wasm_bytes(), 5).unwrap();
+        assert_eq!(v, 8);
     }
     #[test]
-    fn test_aot_with_llvm() {
-        let key = store_with_llvm("./fibonacci.wasm").unwrap();
-        let v = aot_with_llvm(&key, 10).unwrap();
-        println!("Result is {}", v);
+    fn test_call() {
+        let wrapper = wrapper();
+        let instance = wrapper.prepare(&wasm_bytes()).unwrap();
+        let v = wrapper.execute(instance, 5).unwrap();
+        assert_eq!(v, 8);
     }
 }
