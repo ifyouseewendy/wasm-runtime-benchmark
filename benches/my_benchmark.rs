@@ -1,53 +1,55 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use wasm_runtime_benchmark::lucet_runner;
-use wasm_runtime_benchmark::wasmer_runner;
+// use criterion::{black_box, criterion_group, criterion_main, Benchmark, Criterion};
+use criterion::*;
+use wasm_runtime_benchmark::{fibonacci, wasmer_runner};
 
-fn wasmer_jit_with_singlepass(c: &mut Criterion) {
-    c.bench_function("jit with singlepass", |b| {
-        b.iter(|| wasmer_runner::jit_with_singlepass("./fibonacci.wasm", black_box(20)))
-    });
-}
-fn wasmer_jit_with_cranelift(c: &mut Criterion) {
-    c.bench_function("jit with cranelift", |b| {
-        b.iter(|| wasmer_runner::jit_with_cranelift("./fibonacci.wasm", black_box(20)))
-    });
-}
-fn wasmer_aot_with_singlepass(c: &mut Criterion) {
-    let key = wasmer_runner::store_with_singlepass("./fibonacci.wasm").unwrap();
+static WASM: &'static [u8] = include_bytes!("../fibonacci.wasm");
 
-    c.bench_function("aot with singlepass", |b| {
-        b.iter(|| wasmer_runner::aot_with_singlepass(&key, black_box(20)))
-    });
-}
-fn wasmer_aot_with_cranelift(c: &mut Criterion) {
-    let key = wasmer_runner::store_with_cranelift("./fibonacci.wasm").unwrap();
+fn jit(c: &mut Criterion) {
+    let benchmark = Benchmark::new("rust-native", |b| b.iter(|| black_box(fibonacci::run(10))))
+        .sample_size(10)
+        .with_function("wasmer-singlepass", |b| {
+            b.iter(|| {
+                let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Singlepass);
+                wrapper.jit(&WASM, black_box(10))
+            })
+        })
+        .with_function("wasmer-cranelift", |b| {
+            b.iter(|| {
+                let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
+                wrapper.jit(&WASM, black_box(10))
+            })
+        });
+    // Too slow to finish
+    // .with_function("wasmer-llvm", |b| {
+    //     b.iter(|| {
+    //         let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
+    //         wrapper.jit(&WASM, black_box(10))
+    //     })
+    // });
 
-    c.bench_function("aot with cranelift", |b| {
-        b.iter(|| wasmer_runner::aot_with_cranelift(&key, black_box(20)))
-    });
-}
-fn wasmer_aot_with_llvm(c: &mut Criterion) {
-    let key = wasmer_runner::store_with_llvm("./fibonacci.wasm").unwrap();
-
-    c.bench_function("aot with llvm", |b| {
-        b.iter(|| wasmer_runner::aot_with_llvm(&key, black_box(20)))
-    });
+    c.bench("fibonacci", benchmark);
 }
 
-fn lucet_aot(c: &mut Criterion) {
-    let file = "fibonacci.so";
+fn execution(c: &mut Criterion) {
+    let benchmark = Benchmark::new("rust-native", |b| b.iter(|| black_box(fibonacci::run(10))))
+        .with_function("wasmer-singlepass", |b| {
+            let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Singlepass);
+            let instance = wrapper.prepare(&WASM).unwrap();
+            b.iter(|| wrapper.execute(&instance, black_box(10)))
+        })
+        .with_function("wasmer-cranelift", |b| {
+            let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
+            let instance = wrapper.prepare(&WASM).unwrap();
+            b.iter(|| wrapper.execute(&instance, black_box(10)))
+        })
+        .with_function("wasmer-llvm", |b| {
+            let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
+            let instance = wrapper.prepare(&WASM).unwrap();
+            b.iter(|| wrapper.execute(&instance, black_box(10)))
+        });
 
-    c.bench_function("aot lucet", |b| {
-        b.iter(|| lucet_runner::run(file, black_box(20)))
-    });
+    c.bench("fibonacci", benchmark);
 }
 
-criterion_group!(
-    benches,
-    lucet_aot,
-    wasmer_aot_with_cranelift,
-    wasmer_aot_with_singlepass,
-    wasmer_aot_with_llvm // wasmer_jit_with_cranelift,
-                         // wasmer_jit_with_singlepass
-);
+criterion_group!(benches, execution);
 criterion_main!(benches);

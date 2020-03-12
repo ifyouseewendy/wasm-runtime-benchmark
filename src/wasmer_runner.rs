@@ -3,8 +3,8 @@ use wasmer_runtime::{
     compile_with, compiler_for_backend, error, imports, Backend, Func, Instance,
 };
 
-struct Wrapper {
-    pub backend: Backend,
+pub struct Wrapper {
+    backend: Backend,
 }
 
 #[derive(Debug)]
@@ -38,7 +38,10 @@ impl std::convert::From<wasmer_runtime::error::CompileError> for AotError {
 }
 
 impl Wrapper {
-    // should take &[u8] instead of a file
+    pub fn new(backend: Backend) -> Self {
+        Self { backend }
+    }
+
     pub fn jit(&self, wasm_bytes: &[u8], arg: u32) -> error::Result<u32> {
         let compiler = compiler_for_backend(self.backend).unwrap();
         let module = compile_with(wasm_bytes, compiler.as_ref()).unwrap();
@@ -92,7 +95,7 @@ impl Wrapper {
         Ok(instance)
     }
 
-    pub fn execute(&self, instance: Instance, arg: u32) -> error::Result<u32> {
+    pub fn execute(&self, instance: &Instance, arg: u32) -> error::Result<u32> {
         let func: Func<u32, u32> = instance.func("ext_run")?;
         let v = func.call(arg)?;
         Ok(v)
@@ -103,31 +106,27 @@ impl Wrapper {
 mod tests {
     use super::*;
 
-    fn wasm_bytes() -> Vec<u8> {
-        std::fs::read(std::path::Path::new("./fibonacci.wasm")).unwrap()
-    }
+    static WASM: &'static [u8] = include_bytes!("../fibonacci.wasm");
 
     fn wrapper() -> Wrapper {
-        Wrapper {
-            backend: Backend::Singlepass,
-        }
+        Wrapper::new(Backend::Singlepass)
     }
 
     #[test]
     fn test_jit() {
-        let v = wrapper().jit(&wasm_bytes(), 5).unwrap();
+        let v = wrapper().jit(&WASM, 5).unwrap();
         assert_eq!(v, 8);
     }
     #[test]
     fn test_aot_t() {
-        let v = wrapper().aot_t(&wasm_bytes(), 5).unwrap();
+        let v = wrapper().aot_t(&WASM, 5).unwrap();
         assert_eq!(v, 8);
     }
     #[test]
     fn test_call() {
         let wrapper = wrapper();
-        let instance = wrapper.prepare(&wasm_bytes()).unwrap();
-        let v = wrapper.execute(instance, 5).unwrap();
+        let instance = wrapper.prepare(&WASM).unwrap();
+        let v = wrapper.execute(&instance, 5).unwrap();
         assert_eq!(v, 8);
     }
 }
