@@ -178,12 +178,11 @@ fibonacci/lucet               time:   [104.69 ms 106.19 ms 108.53 ms]
 > b'
 
 ```
-fibonacci/wasmer-singlepass   size: 1.1G
-fibonacci/wasmer-cranelift    size: 531M
+fibonacci/wasmer-singlepass   size: 2.2M
+fibonacci/wasmer-cranelift    size: 1.9M
+fibonacci/wasmer-llvm         size: 1.8M
 fibonacci/lucet               size: 92K
 ```
-
-- [ ] :thinking: Double check with Wasmer
 
 #### AOT execution
 
