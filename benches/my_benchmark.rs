@@ -18,14 +18,13 @@ fn jit(c: &mut Criterion) {
                 let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
                 wrapper.jit(&WASM, black_box(10))
             })
+        })
+        .with_function("wasmer-llvm", |b| {
+            b.iter(|| {
+                let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
+                wrapper.jit(&WASM, black_box(10))
+            })
         });
-    // Too slow to finish
-    // .with_function("wasmer-llvm", |b| {
-    //     b.iter(|| {
-    //         let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
-    //         wrapper.jit(&WASM, black_box(10))
-    //     })
-    // });
 
     c.bench("fibonacci-jit", benchmark);
 }
@@ -41,17 +40,13 @@ fn aot_c(c: &mut Criterion) {
             let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
             b.iter(|| black_box(wrapper.aot_c(&WASM).unwrap()))
         })
+        .with_function("wasmer-llvm", |b| {
+            let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
+            b.iter(|| black_box(wrapper.aot_c(&WASM)))
+        })
         .with_function("lucet", |b| {
             b.iter(|| black_box(lucet_runner::aot_c(&WASM)))
         });
-    // Too slow to finish
-    // .with_function("wasmer-llvm", |b| {
-    //		let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
-    // 		let key = wrapper.aot_c(&WASM).unwrap();
-    // 		b.iter(|| {
-    // 		    wrapper.aot_c(&key, black_box(10))
-    // 		})
-    // });
 
     c.bench("fibonacci-aot-c", benchmark);
 }
@@ -97,16 +92,15 @@ fn aot_t(c: &mut Criterion) {
                 wrapper.aot_t(&WASM, black_box(10))
             })
         })
+        .with_function("wasmer-llvm", |b| {
+            b.iter(|| {
+                let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
+                wrapper.aot_t(&WASM, black_box(10))
+            })
+        })
         .with_function("lucet", |b| {
             b.iter(|| lucet_runner::aot_t(&WASM, black_box(10)))
         });
-    // Too slow to finish
-    // .with_function("wasmer-llvm", |b| {
-    //     b.iter(|| {
-    //         let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
-    //         wrapper.aot_t(&WASM, black_box(10))
-    //     })
-    // });
 
     c.bench("fibonacci-aot", benchmark);
 }
@@ -218,5 +212,5 @@ fn lucet(c: &mut Criterion) {
     c.bench("fibonacci/lucet", benchmark);
 }
 
-criterion_group!(benches, lucet);
+criterion_group!(benches, aot_c);
 criterion_main!(benches);
