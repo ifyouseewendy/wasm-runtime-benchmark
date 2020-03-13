@@ -72,15 +72,12 @@ fn aot_e(c: &mut Criterion) {
         .with_function("lucet", |b| {
             let moduleid = lucet_runner::aot_c(&WASM);
             b.iter(|| lucet_runner::aot_e(&moduleid, black_box(10)))
+        })
+        .with_function("wasmer-llvm", |b| {
+            let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
+            let key = wrapper.aot_c(&WASM).unwrap();
+            b.iter(|| wrapper.aot_e(&key, black_box(10)))
         });
-    // Too slow to finish
-    // .with_function("wasmer-llvm", |b| {
-    //		let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
-    // 		let key = wrapper.aot_c(&WASM).unwrap();
-    // 		b.iter(|| {
-    // 		    wrapper.aot_e(&key, black_box(10))
-    // 		})
-    // });
 
     c.bench("fibonacci-aot-e", benchmark);
 }
@@ -140,5 +137,5 @@ fn call(c: &mut Criterion) {
     c.bench("fibonacci-call", benchmark);
 }
 
-criterion_group!(benches, aot_c);
+criterion_group!(benches, aot_e);
 criterion_main!(benches);

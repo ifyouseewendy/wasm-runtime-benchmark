@@ -57,6 +57,8 @@ pub fn prepare(wasm_bytes: &[u8]) -> InstanceHandle {
         .with_opt_level(lucetc::OptLevel::Speed);
     compiler.shared_object_file(&output_path).unwrap();
 
+    // I wonder how much overhead it is to write and read through file.
+    // How about changing it to memory
     lucet_runtime::lucet_internal_ensure_linked();
     let dl_module = DlModule::load(format!("./tmp/lucet/{}", moduleid)).unwrap();
 
