@@ -1,6 +1,6 @@
 use wasmer_runtime::{
     cache::{Cache, FileSystemCache, WasmHash},
-    compile_with, compiler_for_backend, error, imports, Backend, Func, Instance,
+    compile_with, compiler_for_backend, error, imports, Backend, Func, Instance, Module,
 };
 
 pub struct Wrapper {
@@ -85,12 +85,19 @@ impl Wrapper {
         self.aot_e(&key, arg)
     }
 
-    pub fn prepare(&self, wasm_bytes: &[u8]) -> error::Result<Instance> {
+    pub fn compile(&self, wasm_bytes: &[u8]) -> Module {
         let compiler = compiler_for_backend(self.backend).unwrap();
-        let module = compile_with(&wasm_bytes, compiler.as_ref()).unwrap();
+        compile_with(&wasm_bytes, compiler.as_ref()).unwrap()
+    }
 
+    pub fn instantiate(&self, module: &Module) -> error::Result<Instance> {
         let import_object = imports! {};
-        let instance = module.instantiate(&import_object)?;
+        module.instantiate(&import_object)
+    }
+
+    pub fn prepare(&self, wasm_bytes: &[u8]) -> error::Result<Instance> {
+        let module = self.compile(wasm_bytes);
+        let instance = self.instantiate(&module)?;
 
         Ok(instance)
     }

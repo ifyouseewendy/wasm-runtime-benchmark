@@ -137,5 +137,47 @@ fn call(c: &mut Criterion) {
     c.bench("fibonacci-call", benchmark);
 }
 
-criterion_group!(benches, aot_e);
+fn wasmer_singlepass(c: &mut Criterion) {
+    let benchmark = Benchmark::new("compile", |b| {
+        let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Singlepass);
+        b.iter(|| black_box(wrapper.compile(&WASM)))
+    })
+    .sample_size(10)
+    .with_function("instantiate", |b| {
+        let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Singlepass);
+        let module = wrapper.compile(&WASM);
+        b.iter(|| black_box(wrapper.instantiate(&module)))
+    })
+    .with_function("call", |b| {
+        let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Singlepass);
+        let module = wrapper.compile(&WASM);
+        let instance = wrapper.instantiate(&module).unwrap();
+        b.iter(|| black_box(wrapper.call(&instance, 10)))
+    });
+
+    c.bench("fibonacci/wasmer-singlepass", benchmark);
+}
+
+fn wasmer_cranelift(c: &mut Criterion) {
+    let benchmark = Benchmark::new("compile", |b| {
+        let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
+        b.iter(|| black_box(wrapper.compile(&WASM)))
+    })
+    .sample_size(10)
+    .with_function("instantiate", |b| {
+        let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
+        let module = wrapper.compile(&WASM);
+        b.iter(|| black_box(wrapper.instantiate(&module)))
+    })
+    .with_function("call", |b| {
+        let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
+        let module = wrapper.compile(&WASM);
+        let instance = wrapper.instantiate(&module).unwrap();
+        b.iter(|| black_box(wrapper.call(&instance, 10)))
+    });
+
+    c.bench("fibonacci/wasmer-cranelift", benchmark);
+}
+
+criterion_group!(benches, wasmer_cranelift);
 criterion_main!(benches);
