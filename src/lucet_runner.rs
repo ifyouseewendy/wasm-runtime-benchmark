@@ -1,14 +1,27 @@
-use lucet_runtime::{DlModule, Limits, MmapRegion, Region};
-use lucet_wasi::WasiCtxBuilder;
+use lucet_runtime::{DlModule, InstanceHandle, Limits, MmapRegion, Region};
+use lucetc::{Lucetc, LucetcOpts};
+use multibase::{encode, Base};
 
-pub fn run(file: &str, arg: u32) -> u32 {
+// What if we don't save it to file, but in a memory array?
+// aka, what's the overhead for using file IO
+// aka, what's the performance for simulated JIT
+pub fn aot_c(wasm_bytes: &[u8]) -> String {
+    let moduleid = encode(Base::Base58Btc, &wasm_bytes[0..30]);
+
+    let path = format!("./tmp/lucet/{}", moduleid);
+    let output_path = std::path::Path::new(&path);
+    let compiler = Lucetc::try_from_bytes(wasm_bytes)
+        .unwrap()
+        .with_opt_level(lucetc::OptLevel::Speed);
+    compiler.shared_object_file(&output_path).unwrap();
+
+    moduleid
+}
+
+pub fn aot_e(moduleid: &str, arg: u32) -> u32 {
     lucet_runtime::lucet_internal_ensure_linked();
-    // ensure the WASI symbols are exported from the final executable
-    lucet_wasi::export_wasi_funcs();
-    // load the compiled Lucet module
-    let dl_module = DlModule::load(file).unwrap();
+    let dl_module = DlModule::load(format!("./tmp/lucet/{}", moduleid)).unwrap();
 
-    // create a new memory region with default limits on heap and stack size
     let region = MmapRegion::create(
         1,
         &Limits {
@@ -19,14 +32,48 @@ pub fn run(file: &str, arg: u32) -> u32 {
     )
     .unwrap();
 
-    // instantiate the module in the memory region
     let mut instance = region.new_instance(dl_module).unwrap();
 
-    // prepare the WASI context, inheriting stdio handles from the host executable
-    // let wasi_ctx = WasiCtxBuilder::new().inherit_stdio().build().unwrap();
-    // instance.insert_embed_ctx(wasi_ctx);
+    instance
+        .run("ext_run", &[arg.into()])
+        .unwrap()
+        .returned()
+        .unwrap()
+        .as_u32()
+}
 
-    // run the WASI main function
+pub fn aot_t(wasm_bytes: &[u8], arg: u32) -> u32 {
+    let moduleid = aot_c(wasm_bytes);
+    aot_e(&moduleid, arg)
+}
+
+pub fn prepare(wasm_bytes: &[u8]) -> InstanceHandle {
+    let moduleid = encode(Base::Base58Btc, &wasm_bytes[0..30]);
+
+    let path = format!("./tmp/lucet/{}", moduleid);
+    let output_path = std::path::Path::new(&path);
+    let compiler = Lucetc::try_from_bytes(wasm_bytes)
+        .unwrap()
+        .with_opt_level(lucetc::OptLevel::Speed);
+    compiler.shared_object_file(&output_path).unwrap();
+
+    lucet_runtime::lucet_internal_ensure_linked();
+    let dl_module = DlModule::load(format!("./tmp/lucet/{}", moduleid)).unwrap();
+
+    let region = MmapRegion::create(
+        1,
+        &Limits {
+            heap_memory_size: 8 * 1024 * 1024,
+            stack_size: 128 * 1024,
+            ..Limits::default()
+        },
+    )
+    .unwrap();
+
+    region.new_instance(dl_module).unwrap()
+}
+
+pub fn call(instance: &mut InstanceHandle, arg: u32) -> u32 {
     instance
         .run("ext_run", &[arg.into()])
         .unwrap()
@@ -39,9 +86,22 @@ pub fn run(file: &str, arg: u32) -> u32 {
 mod tests {
     use super::*;
 
+    static WASM: &'static [u8] = include_bytes!("../fibonacci.wasm");
+
     #[test]
-    fn test_run() {
-        let v = run("fibonacci.so", 20);
-        println!("Result is {:?}", v);
+    fn test_aot_c() {
+        let moduleid = aot_c(&WASM);
+        println!("moduleid is {:?}", moduleid);
+    }
+
+    #[test]
+    fn test_aot_t() {
+        assert_eq!(aot_t(&WASM, 10), 89);
+    }
+
+    #[test]
+    fn test_call() {
+        let mut instance = prepare(&WASM);
+        assert_eq!(call(&mut instance, 10), 89);
     }
 }

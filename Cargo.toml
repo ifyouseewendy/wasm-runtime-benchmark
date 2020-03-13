@@ -5,8 +5,9 @@ authors = ["Di Wen <ifyouseewendy@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-lucet-runtime = { path = "../lucet/lucet-runtime" }
-lucet-wasi = { path = "../lucet/lucet-wasi" }
+lucet-runtime = "0.6.1"
+lucetc = "0.6.1"
+multibase = "*"
 
 [dependencies.wasmer-runtime]
 git = "https://github.com/wasmerio/wasmer"
