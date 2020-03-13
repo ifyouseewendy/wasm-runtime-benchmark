@@ -179,5 +179,44 @@ fn wasmer_cranelift(c: &mut Criterion) {
     c.bench("fibonacci/wasmer-cranelift", benchmark);
 }
 
-criterion_group!(benches, wasmer_cranelift);
+fn wasmer_llvm(c: &mut Criterion) {
+    let benchmark = Benchmark::new("compile", |b| {
+        let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
+        b.iter(|| black_box(wrapper.compile(&WASM)))
+    })
+    .sample_size(10)
+    .with_function("instantiate", |b| {
+        let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
+        let module = wrapper.compile(&WASM);
+        b.iter(|| black_box(wrapper.instantiate(&module)))
+    })
+    .with_function("call", |b| {
+        let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
+        let module = wrapper.compile(&WASM);
+        let instance = wrapper.instantiate(&module).unwrap();
+        b.iter(|| black_box(wrapper.call(&instance, 10)))
+    });
+
+    c.bench("fibonacci/wasmer-llvm", benchmark);
+}
+
+fn lucet(c: &mut Criterion) {
+    let benchmark = Benchmark::new("compile", |b| {
+        b.iter(|| black_box(lucet_runner::compile(&WASM)))
+    })
+    .sample_size(10)
+    .with_function("instantiate", |b| {
+        let moduleid = lucet_runner::compile(&WASM);
+        b.iter(|| black_box(lucet_runner::instantiate(&moduleid)))
+    })
+    .with_function("call", |b| {
+        let moduleid = lucet_runner::compile(&WASM);
+        let mut instance = lucet_runner::instantiate(&moduleid);
+        b.iter(|| black_box(lucet_runner::call(&mut instance, 10)))
+    });
+
+    c.bench("fibonacci/lucet", benchmark);
+}
+
+criterion_group!(benches, lucet);
 criterion_main!(benches);

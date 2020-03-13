@@ -47,7 +47,7 @@ pub fn aot_t(wasm_bytes: &[u8], arg: u32) -> u32 {
     aot_e(&moduleid, arg)
 }
 
-pub fn prepare(wasm_bytes: &[u8]) -> InstanceHandle {
+pub fn compile(wasm_bytes: &[u8]) -> String {
     let moduleid = encode(Base::Base58Btc, &wasm_bytes[0..30]);
 
     let path = format!("./tmp/lucet/{}", moduleid);
@@ -56,7 +56,10 @@ pub fn prepare(wasm_bytes: &[u8]) -> InstanceHandle {
         .unwrap()
         .with_opt_level(lucetc::OptLevel::Speed);
     compiler.shared_object_file(&output_path).unwrap();
+    moduleid
+}
 
+pub fn instantiate(moduleid: &str) -> InstanceHandle {
     // I wonder how much overhead it is to write and read through file.
     // How about changing it to memory
     lucet_runtime::lucet_internal_ensure_linked();
@@ -73,6 +76,11 @@ pub fn prepare(wasm_bytes: &[u8]) -> InstanceHandle {
     .unwrap();
 
     region.new_instance(dl_module).unwrap()
+}
+
+pub fn prepare(wasm_bytes: &[u8]) -> InstanceHandle {
+    let moduleid = compile(wasm_bytes);
+    instantiate(&moduleid)
 }
 
 pub fn call(instance: &mut InstanceHandle, arg: u32) -> u32 {
