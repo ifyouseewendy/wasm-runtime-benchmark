@@ -30,6 +30,32 @@ fn jit(c: &mut Criterion) {
     c.bench("fibonacci-jit", benchmark);
 }
 
+fn aot_c(c: &mut Criterion) {
+    let benchmark = Benchmark::new("rust-native", |b| b.iter(|| black_box(fibonacci::run(10))))
+        .sample_size(10)
+        .with_function("wasmer-singlepass", |b| {
+            let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Singlepass);
+            b.iter(|| black_box(wrapper.aot_c(&WASM).unwrap()))
+        })
+        .with_function("wasmer-cranelift", |b| {
+            let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
+            b.iter(|| black_box(wrapper.aot_c(&WASM).unwrap()))
+        })
+        .with_function("lucet", |b| {
+            b.iter(|| black_box(lucet_runner::aot_c(&WASM)))
+        });
+    // Too slow to finish
+    // .with_function("wasmer-llvm", |b| {
+    //		let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
+    // 		let key = wrapper.aot_c(&WASM).unwrap();
+    // 		b.iter(|| {
+    // 		    wrapper.aot_c(&key, black_box(10))
+    // 		})
+    // });
+
+    c.bench("fibonacci-aot-c", benchmark);
+}
+
 fn aot_e(c: &mut Criterion) {
     let benchmark = Benchmark::new("rust-native", |b| b.iter(|| black_box(fibonacci::run(10))))
         .sample_size(10)
@@ -59,7 +85,7 @@ fn aot_e(c: &mut Criterion) {
     c.bench("fibonacci-aot-e", benchmark);
 }
 
-fn aot(c: &mut Criterion) {
+fn aot_t(c: &mut Criterion) {
     let benchmark = Benchmark::new("rust-native", |b| b.iter(|| black_box(fibonacci::run(10))))
         .sample_size(10)
         .with_function("wasmer-singlepass", |b| {
@@ -114,5 +140,5 @@ fn call(c: &mut Criterion) {
     c.bench("fibonacci-call", benchmark);
 }
 
-criterion_group!(benches, aot, aot_e, call);
+criterion_group!(benches, aot_c);
 criterion_main!(benches);
