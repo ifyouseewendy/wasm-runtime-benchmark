@@ -16,7 +16,8 @@ default-features = false
 features = ["singlepass", "cranelift", "llvm", "default-backend-singlepass"]
 
 [dev-dependencies]
-criterion = "0.3"
+# https://bheisler.github.io/criterion.rs/book/user_guide/known_limitations.html
+criterion = { version = "0.3", features = ["real_blackbox"] }
 
 [[bench]]
 name = "my_benchmark"
