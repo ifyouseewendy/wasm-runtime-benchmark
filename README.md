@@ -184,6 +184,16 @@ fibonacci/wasmer-llvm         size: 1.8M
 fibonacci/lucet               size: 92K
 ```
 
+With stripped wasm (`wasm-strip fibonacci.wasm`), removing the unnecessary custom data
+section and reducing the file size from 1.8M to 16K
+
+```
+fibonacci/wasmer-singlepass   size: 362k
+fibonacci/wasmer-cranelift    size: 98k
+fibonacci/wasmer-llvm         size: 43k
+fibonacci/lucet               size: 86K
+```
+
 #### AOT execution
 
 > c'+c+d
