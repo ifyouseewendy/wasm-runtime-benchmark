@@ -73,6 +73,9 @@ Generate sample
 
 ```
 $ rustc +nightly --target wasm32-unknown-unknown --crate-type cdylib src/fibonacci.rs -o fibonacci.wasm
+
+# To strip
+$ wasm-strip fibonacci.wasm
 ```
 
 To enable LLVM backend for Wasmer, follow https://gitlab.com/taricorp/llvm-sys.rs#compiling-llvm to install LLVM and
