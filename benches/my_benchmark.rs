@@ -12,6 +12,10 @@ lazy_static! {
             "fibonacci",
             &include_bytes!("../wasm-sample/fibonacci.wasm")[..],
         );
+        map.insert(
+            "mruby-script",
+            &include_bytes!("../wasm-sample/discount-script-mruby.wasm")[..],
+        );
         map
     };
 }
