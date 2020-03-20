@@ -1,32 +1,60 @@
-// use criterion::{black_box, criterion_group, criterion_main, Benchmark, Criterion};
 use criterion::*;
-use wasm_runtime_benchmark::{fibonacci, lucet_runner, wasmer_runner};
+use lazy_static::lazy_static;
+use rust_fibonacci as fibonacci;
+use wasm_runtime_benchmark::{lucet_runner, wasmer_runner};
 
-static WASM: &'static [u8] = include_bytes!("../fibonacci.wasm");
+use std::collections::HashMap;
+
+lazy_static! {
+    static ref SAMPLES: HashMap<&'static str, &'static [u8]> = {
+        let mut map = HashMap::new();
+        map.insert(
+            "fibonacci",
+            &include_bytes!("../wasm-sample/fibonacci.wasm")[..],
+        );
+        map
+    };
+}
+
+static WASM: &'static [u8] = include_bytes!("../wasm-sample/fibonacci.wasm");
 
 fn jit(c: &mut Criterion) {
-    let benchmark = Benchmark::new("rust-native", |b| b.iter(|| black_box(fibonacci::run(10))))
-        .sample_size(10)
-        .with_function("wasmer-singlepass", |b| {
-            b.iter(|| {
-                let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Singlepass);
-                wrapper.jit(&WASM, black_box(10))
-            })
-        })
-        .with_function("wasmer-cranelift", |b| {
-            b.iter(|| {
-                let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
-                wrapper.jit(&WASM, black_box(10))
-            })
-        })
-        .with_function("wasmer-llvm", |b| {
-            b.iter(|| {
-                let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
-                wrapper.jit(&WASM, black_box(10))
-            })
-        });
+    for (name, wasm) in SAMPLES.iter() {
+        let mut group = c.benchmark_group("jit");
 
-    c.bench("fibonacci-jit", benchmark);
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "wasmer-singlepass"),
+            wasm,
+            |b, &wasm| {
+                b.iter(|| {
+                    let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Singlepass);
+                    wrapper.jit(&wasm, black_box(10))
+                });
+            },
+        );
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "wasmer-cranelift"),
+            wasm,
+            |b, &wasm| {
+                b.iter(|| {
+                    let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
+                    wrapper.jit(&wasm, black_box(10))
+                });
+            },
+        );
+        // group.sample_size(10).bench_with_input(
+        //     BenchmarkId::new(name.to_owned(), "wasmer-llvm"),
+        //     wasm,
+        //     |b, &wasm| {
+        //         b.iter(|| {
+        //             let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
+        //             wrapper.jit(&wasm, black_box(10))
+        //         });
+        //     },
+        // );
+
+        group.finish();
+    }
 }
 
 fn aot_c(c: &mut Criterion) {
@@ -212,5 +240,5 @@ fn lucet(c: &mut Criterion) {
     c.bench("fibonacci/lucet", benchmark);
 }
 
-criterion_group!(benches, aot_c);
+criterion_group!(benches, jit);
 criterion_main!(benches);
