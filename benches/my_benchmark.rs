@@ -9,6 +9,10 @@ lazy_static! {
     static ref SAMPLES: HashMap<&'static str, &'static [u8]> = {
         let mut map = HashMap::new();
         map.insert(
+            "add-one",
+            &include_bytes!("../wasm-sample/add-one.wasm")[..],
+        );
+        map.insert(
             "fibonacci",
             &include_bytes!("../wasm-sample/fibonacci.wasm")[..],
         );

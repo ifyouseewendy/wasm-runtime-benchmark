@@ -1,3 +1,14 @@
+### `add-one.wasm`
+
+`add-one.wasm` is compiled by [add-one](./add-one)
+
+```
+$ cd add-one
+$ npm install
+$ npx asc assembly/index.ts -b add-one.wasm --validate --optimize
+$ mv add-one.wasm ../
+```
+
 ### `fibonacci.wasm`
 
 `fibonacci.wasm` is compiled by [rust-fibonacci](./rust-fibonacci)
