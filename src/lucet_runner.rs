@@ -96,7 +96,7 @@ pub fn call(instance: &mut InstanceHandle, arg: u32) -> u32 {
 mod tests {
     use super::*;
 
-    static WASM: &'static [u8] = include_bytes!("../fibonacci.wasm");
+    static WASM: &'static [u8] = include_bytes!("../wasm-sample/fibonacci.wasm");
 
     #[test]
     fn test_aot_c() {

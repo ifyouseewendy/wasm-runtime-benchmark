@@ -113,7 +113,7 @@ impl Wrapper {
 mod tests {
     use super::*;
 
-    static WASM: &'static [u8] = include_bytes!("../fibonacci.wasm");
+    static WASM: &'static [u8] = include_bytes!("../wasm-sample/fibonacci.wasm");
 
     fn wrapper() -> Wrapper {
         Wrapper::new(Backend::Singlepass)
