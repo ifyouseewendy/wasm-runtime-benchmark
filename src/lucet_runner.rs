@@ -35,7 +35,7 @@ pub fn aot_e(moduleid: &str, arg: u32) -> u32 {
     let mut instance = region.new_instance(dl_module).unwrap();
 
     instance
-        .run("ext_run", &[arg.into()])
+        .run("run", &[arg.into()])
         .unwrap()
         .returned()
         .unwrap()
@@ -85,7 +85,7 @@ pub fn prepare(wasm_bytes: &[u8]) -> InstanceHandle {
 
 pub fn call(instance: &mut InstanceHandle, arg: u32) -> u32 {
     instance
-        .run("ext_run", &[arg.into()])
+        .run("run", &[arg.into()])
         .unwrap()
         .returned()
         .unwrap()

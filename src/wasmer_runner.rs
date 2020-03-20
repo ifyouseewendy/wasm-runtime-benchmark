@@ -49,7 +49,7 @@ impl Wrapper {
         let import_object = imports! {};
         let instance = module.instantiate(&import_object)?;
 
-        let run: Func<u32, u32> = instance.func("ext_run")?;
+        let run: Func<u32, u32> = instance.func("run")?;
         let v = run.call(arg)?;
         Ok(v)
     }
@@ -75,7 +75,7 @@ impl Wrapper {
         let import_object = imports! {};
         let instance = module.instantiate(&import_object).unwrap();
 
-        let run: Func<u32, u32> = instance.func("ext_run").unwrap();
+        let run: Func<u32, u32> = instance.func("run").unwrap();
         let v = run.call(arg).unwrap();
         Ok(v)
     }
@@ -103,7 +103,7 @@ impl Wrapper {
     }
 
     pub fn call(&self, instance: &Instance, arg: u32) -> error::Result<u32> {
-        let func: Func<u32, u32> = instance.func("ext_run")?;
+        let func: Func<u32, u32> = instance.func("run")?;
         let v = func.call(arg)?;
         Ok(v)
     }
