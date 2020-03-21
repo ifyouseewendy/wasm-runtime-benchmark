@@ -75,7 +75,7 @@ We should prepare a few wasm samples of different size and complication. You
 can check [wasm-sample](./wasm-sample/) for how to compile the sample programs
 into wasm.
 
-1. `add-one.wasm`
+#### `add-one.wasm`
 
 source:
 
@@ -85,10 +85,19 @@ export function run(a: i32): i32 {
 }
 ```
 
+compile:
+
+```
+$ cd add-one
+$ npm install
+$ npx asc assembly/index.ts -b add-one.wasm --validate --optimize
+$ mv add-one.wasm ../
+```
+
 size: 2.6k
 
 
-2. `fibonacci.wasm`
+#### `fibonacci.wasm`
 
 source:
 
@@ -102,12 +111,23 @@ fn run(n: u32) -> u32 {
 }
 ```
 
+compile:
+
+```
+$ cd fibonacci/
+$ rustc +nightly --target wasm32-unknown-unknown --crate-type cdylib src/fibonacci.rs -o fibonacci.wasm
+$ wasm-strip fibonacci.wasm
+$ mv fibonacci.wasm ../
+```
+
 size: 16k
 
-3. `mruby-script.wasm`
+#### `mruby-script.wasm`
 
 source:
 [entry_discount.c](https://github.com/ifyouseewendy/artichoke/blob/master/mruby-sys/vendor/mruby-bc7c5d3/entry_discount.c)
+
+compile:
 
 It is compiled by
 [artichoke](https://github.com/artichoke/artichoke), which doesn't support

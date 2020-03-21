@@ -1,5 +1,5 @@
 [package]
-name = "rust-fibonacci"
+name = "fibonacci"
 version = "0.1.0"
 authors = ["Di Wen <ifyouseewendy@gmail.com>"]
 edition = "2018"

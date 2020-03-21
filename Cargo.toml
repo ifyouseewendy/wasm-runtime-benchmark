@@ -5,7 +5,7 @@ authors = ["Di Wen <ifyouseewendy@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-rust-fibonacci  = { path = "./wasm-sample/rust-fibonacci", version = "0.1.0" }
+fibonacci  = { path = "./wasm-sample/fibonacci", version = "0.1.0" }
 lucet-runtime = "0.6.1"
 lucetc = "0.6.1"
 multibase = "*"

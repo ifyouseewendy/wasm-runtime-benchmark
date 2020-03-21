@@ -699,6 +699,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e88a8acf291dafb59c2d96e8f59828f3838bb1a70398823ade51a84de6a6deed"
 
 [[package]]
+name = "fibonacci"
+version = "0.1.0"
+
+[[package]]
 name = "flate2"
 version = "1.0.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1509,10 +1513,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rust-fibonacci"
-version = "0.1.0"
-
-[[package]]
 name = "rustc-demangle"
 version = "0.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2026,11 +2026,11 @@ name = "wasm-runtime-benchmark"
 version = "0.1.0"
 dependencies = [
  "criterion",
+ "fibonacci",
  "lazy_static",
  "lucet-runtime",
  "lucetc",
  "multibase",
- "rust-fibonacci",
  "wasmer-runtime",
 ]
 
