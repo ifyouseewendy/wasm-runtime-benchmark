@@ -115,12 +115,27 @@ compile:
 
 ```
 $ cd fibonacci/
-$ rustc +nightly --target wasm32-unknown-unknown --crate-type cdylib src/fibonacci.rs -o fibonacci.wasm
+$ rustc +nightly --target wasm32-unknown-unknown --crate-type cdylib src/lib.rs -o fibonacci.wasm
 $ wasm-strip fibonacci.wasm
 $ mv fibonacci.wasm ../
 ```
 
 size: 16k
+
+#### `nbody.wasm`
+
+source: https://github.com/wasmerio/wasmer-bench/blob/master/benchmarks/src/nbody.rs
+
+compile:
+
+```
+$ cd nbody/
+$ rustc +nightly --target wasm32-unknown-unknown --crate-type cdylib src/lib.rs -o nbody.wasm
+$ wasm-strip nbody.wasm
+$ mv nbody.wasm ../
+```
+
+size: 9.3k
 
 #### `mruby-script.wasm`
 

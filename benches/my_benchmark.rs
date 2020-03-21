@@ -16,6 +16,10 @@ lazy_static! {
             "fibonacci",
             &include_bytes!("../wasm-sample/fibonacci.wasm")[..],
         );
+        map.insert(
+            "nbody",
+            &include_bytes!("../wasm-sample/nbody.wasm")[..],
+        );
         // So slow for cranelift and LLVM to compile
         // map.insert(
         //     "mruby-script",
