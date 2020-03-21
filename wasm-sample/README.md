@@ -1,32 +1,44 @@
-### `add-one.wasm`
+1. `add-one.wasm`
 
-`add-one.wasm` is compiled by [add-one](./add-one)
+source:
 
-```
-$ cd add-one
-$ npm install
-$ npx asc assembly/index.ts -b add-one.wasm --validate --optimize
-$ mv add-one.wasm ../
-```
-
-### `fibonacci.wasm`
-
-`fibonacci.wasm` is compiled by [rust-fibonacci](./rust-fibonacci)
-
-```
-$ cd rust-fibonacci
-$ rustc --target wasm32-unknown-unknown --crate-type cdylib src/lib.rs -o fibonacci.wasm
-$ wasm-strip fibonacci.wasm
-$ mv fibonacci.wasm ../
+```js
+export function run(a: i32): i32 {
+  return a + 1;
+}
 ```
 
-### `discount-script-mruby.wasm`
+size: 2.6k
 
-`discount-script-mruby.wasm` is compiled by
+
+2. `fibonacci.wasm`
+
+source:
+
+```rust
+fn run(n: u32) -> u32 {
+    if n < 2 {
+        1
+    } else {
+        run(n - 1) + run(n - 2)
+    }
+}
+```
+
+size: 16k
+
+3. `mruby-script.wasm`
+
+source:
+[entry_discount.c](https://github.com/ifyouseewendy/artichoke/blob/master/mruby-sys/vendor/mruby-bc7c5d3/entry_discount.c)
+
+It is compiled by
 [artichoke](https://github.com/artichoke/artichoke), which doesn't support
 `wasm32-unknown-unknown` yet. We have a hack for compiling a discount mruby
 script. The wasm file is compiled
 [here](https://github.com/ifyouseewendy/artichoke/tree/master/mruby-sys/vendor/mruby-bc7c5d3).
 To be noted, we are sending a plain integer to this wasm in benchmark,
 which won't function properly, but should serve the purpose for compiling and
-executing a large (1.2M) and complicate wasm.
+executing a large and complicate wasm.
+
+size: 1.2M

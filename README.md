@@ -69,19 +69,63 @@ For a bunch of WebAssembly runtimes, in addition to comparing the above metrics,
 
 ## Implementation (WIP)
 
-Generate sample
+### Generate samples
 
-```
-$ rustc +nightly --target wasm32-unknown-unknown --crate-type cdylib src/fibonacci.rs -o fibonacci.wasm
+We should prepare a few wasm samples of different size and complication. You
+can check [wasm-sample](./wasm-sample/) for how to compile the sample programs
+into wasm.
 
-# To strip
-$ wasm-strip fibonacci.wasm
+1. `add-one.wasm`
+
+source:
+
+```js
+export function run(a: i32): i32 {
+  return a + 1;
+}
 ```
+
+size: 2.6k
+
+
+2. `fibonacci.wasm`
+
+source:
+
+```rust
+fn run(n: u32) -> u32 {
+    if n < 2 {
+        1
+    } else {
+        run(n - 1) + run(n - 2)
+    }
+}
+```
+
+size: 16k
+
+3. `mruby-script.wasm`
+
+source:
+[entry_discount.c](https://github.com/ifyouseewendy/artichoke/blob/master/mruby-sys/vendor/mruby-bc7c5d3/entry_discount.c)
+
+It is compiled by
+[artichoke](https://github.com/artichoke/artichoke), which doesn't support
+`wasm32-unknown-unknown` yet. We have a hack for compiling a discount mruby
+script. The wasm file is compiled
+[here](https://github.com/ifyouseewendy/artichoke/tree/master/mruby-sys/vendor/mruby-bc7c5d3).
+To be noted, we are sending a plain integer to this wasm in benchmark,
+which won't function properly, but should serve the purpose for compiling and
+executing a large and complicate wasm.
+
+size: 1.2M
+
+### Run benchmark
 
 To enable LLVM backend for Wasmer, follow https://gitlab.com/taricorp/llvm-sys.rs#compiling-llvm to install LLVM and
 `export LLVM_SYS_80_PREFIX=YOUR_PATH_TO_LLVM_DIR`
 
-Run benchmark
+Run by
 
 ```
 $ cargo bench
@@ -96,7 +140,6 @@ $ open target/criterion/report/index.html
 TODO
 
 - [ ] Add WAVM, in addition to Wasmer and Lucet.
-- [ ] Add more samples, in addition to the current recursive fibonacci one
 - [ ] Bench WASI
 
 ## Report
