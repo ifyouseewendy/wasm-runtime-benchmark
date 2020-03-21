@@ -13,7 +13,7 @@ compile:
 ```
 $ cd add-one
 $ npm install
-$ npx asc assembly/index.ts -b add-one.wasm --validate --optimize
+$ npx asc assembly/index.ts -b add-one.wasm --validate --optimize --use abort= --runtime full
 $ mv add-one.wasm ../
 ```
 
