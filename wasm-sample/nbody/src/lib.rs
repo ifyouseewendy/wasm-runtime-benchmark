@@ -4,11 +4,14 @@
 // Code adopted from https://benchmarksgame-team.pages.debian.net/benchmarksgame/program/nbody-rust-1.html
 
 #![no_std]
-#![feature(core_intrinsics, lang_items)]
+#![feature(core_intrinsics)]
 
 use core::intrinsics;
+
+#[cfg(target_arch = "wasm32")]
 use core::panic::PanicInfo;
 
+#[cfg(target_arch = "wasm32")]
 #[panic_handler]
 #[no_mangle]
 pub fn panic(_info: &PanicInfo) -> ! {

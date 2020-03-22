@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 fibonacci  = { path = "./wasm-sample/fibonacci", version = "0.1.0" }
+nbody  = { path = "./wasm-sample/nbody", version = "0.1.0" }
 lucet-runtime = "0.6.1"
 lucetc = "0.6.1"
 multibase = "*"
