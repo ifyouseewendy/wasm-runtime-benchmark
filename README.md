@@ -1,3 +1,24 @@
+- [Context](#context)
+  * [What happens when a runtime executes a WebAseembly file?](#what-happens-when-a-runtime-executes-a-webaseembly-file)
+  * [What are compilation/execution modes?](#what-are-compilation-execution-modes)
+- [Benchmark Plan](#benchmark-plan)
+  * [Samples](#Samples)
+  * [Individual](#individual)
+  * [Comparison](#comparison)
+- [Run](#run)
+- [Report](#report)
+  * [Individual - Wasmer/Singlepass](#individual---wasmersinglepass)
+  * [Individual - Wasmer/Cranelift](#individual---wasmercranelift)
+  * [Individual - Wasmer/LLVM](#individual---wasmerllvm)
+  * [Individual - Lucet](#individual---lucet)
+  * [Comparison - JIT](#comparison---jit)
+  * [Comparison - AOT](#comparison---aot)
+    + [AOT total](#aot-total)
+    + [AOT compile (time)](#aot-compile-time)
+    + [AOT compile (space)](#aot-compile-space)
+    + [AOT execution](#aot-execution)
+  * [Comparison - Pure execution](#comparison---pure-execution)
+
 ## Context
 
 ### What happens when a runtime executes a WebAseembly file?
@@ -27,7 +48,7 @@ We can generally consider a WebAssembly runtime does a four step job:
 **When we benchmark a runtime, we want to know how long each step takes.** For
 compilation, there is also a space concern.
 
-### What about compilation/execution modes?
+### What are compilation/execution modes?
 
 Different runtimes have different designs based on the targeted use cases, eg.
 Wasmer lets you exchange the compiler backend and Lucet is designed for
@@ -47,117 +68,35 @@ In addition, when we compare the performance with native, we are specifically lo
 
 ## Benchmark Plan
 
+### Samples
+
+Sampes should be of different size and complexity. You can check [wasm-sample](./wasm-sample/) for how to compile the sample programs into wasm. Here is an overview of each sample:
+
+* **add-one.wasm** is 2.6k with simple logic
+* **nbody.wasm** is 9.3k with complex logic
+* **fibonacci.wasm*** is 16k with a simple but recursive logic
+* **mruby-script.wasm*** is 1.2M with a mruby script along with the interpreter compiled. It get only gets used in the "AOT compile" case.
+
 ### Individual
 
-For one WebAssembly runtime, we want to measure the performance of
+For one WebAssembly runtime, we want to measure the performance of each step:
+
+* `ab`. compile (parse is included and inseparable)
+* `c`. instantiate
+* `d`. execute
+
+### Comparison
+
+For a bunch of WebAssembly runtimes, in addition to comparing the above metrics, we should also consider the performance of
 
 - JIT: `a+b+c+d`
 - AOT compile: `a+b+b'` (also measuring space for `b'`)
 - AOT execute: `c'+c+d`
 - pure execution: `d`
 
-To be noted, given AOT is trading space for speed compared to JIT, we may want
-to know the overhead of using an AOT solution.
+- performance with addition features, like WASI 
 
-### Comparison
-
-For a bunch of WebAssembly runtimes, in addition to comparing the above metrics, we should also consider
-
-- performance with samples of different size and complexity
-
-- performance with addition features, like WASI
-
-## Implementation
-
-### Generate samples
-
-We should prepare a few wasm samples of different size and complication. You
-can check [wasm-sample](./wasm-sample/) for how to compile the sample programs into wasm.
-
-#### `add-one.wasm`
-
-source:
-
-```js
-export function run(a: i32): i32 {
-  return a + 1;
-}
-```
-
-compile:
-
-```
-$ cd add-one
-$ npm install
-$ npx asc assembly/index.ts -b add-one.wasm --validate --optimize
-$ mv add-one.wasm ../
-```
-
-size: 2.6k
-
-
-#### `fibonacci.wasm`
-
-source:
-
-```rust
-fn run(n: u32) -> u32 {
-    if n < 2 {
-        1
-    } else {
-        run(n - 1) + run(n - 2)
-    }
-}
-```
-
-compile:
-
-```
-$ cd fibonacci/
-$ rustc +nightly --target wasm32-unknown-unknown --crate-type cdylib src/lib.rs -o fibonacci.wasm
-$ wasm-strip fibonacci.wasm
-$ mv fibonacci.wasm ../
-```
-
-size: 16k
-
-#### `nbody.wasm`
-
-source: https://github.com/wasmerio/wasmer-bench/blob/master/benchmarks/src/nbody.rs
-
-compile:
-
-```
-$ cd nbody/
-$ rustc +nightly --target wasm32-unknown-unknown --crate-type cdylib src/lib.rs -o nbody.wasm
-$ wasm-strip nbody.wasm
-$ mv nbody.wasm ../
-```
-
-size: 9.3k
-
-#### `mruby-script.wasm`
-
-source:
-[entry_discount.c](https://github.com/ifyouseewendy/artichoke/blob/master/mruby-sys/vendor/mruby-bc7c5d3/entry_discount.c)
-
-compile:
-
-It is compiled by [artichoke](https://github.com/artichoke/artichoke), which doesn't support `wasm32-unknown-unknown` yet. We have a hack for compiling a discount mruby script. The wasm file is compiled [here](https://github.com/ifyouseewendy/artichoke/tree/master/mruby-sys/vendor/mruby-bc7c5d3). To be noted, we are sending a plain integer to this wasm in benchmark,
-which won't function properly, but should serve the purpose for compiling and
-executing a large and complicate wasm.
-
-size: 1.2M
-
-### Run benchmark
-
-Note:
-
-* To enable LLVM backend for Wasmer, follow https://gitlab.com/taricorp/llvm-sys.rs#compiling-llvm to install LLVM and
-  `export LLVM_SYS_80_PREFIX=YOUR_PATH_TO_LLVM_DIR`
-* Benchmark with LLVM involved usually takes >10 mins
-* Configure `criterion_group!` in [benches/my_benchmark.rs](./benches/my_benchmark.rs) to run benchmark selectively
-* Create a `tmp` and `tmp/lucet` for the AOT cases.
+## Run
 
 Run
 
@@ -165,11 +104,15 @@ Run
 $ cargo bench
 ```
 
-Check result at STDOUT or
+Check result at `STDOUT` or `target/criterion/report/index.html`.
 
-```
-$ open target/criterion/report/index.html
-```
+Note
+
+* To enable LLVM backend for Wasmer, follow https://gitlab.com/taricorp/llvm-sys.rs#compiling-llvm to install LLVM and
+  `export LLVM_SYS_80_PREFIX=YOUR_PATH_TO_LLVM_DIR`
+* Benchmark with LLVM involved usually takes >10 mins
+* Configure `criterion_group!` in [benches/my_benchmark.rs](./benches/my_benchmark.rs) to run benchmark selectively
+* Create a `tmp` and `tmp/lucet` for holding the cache in AOT cases.
 
 TODO
 
@@ -197,12 +140,6 @@ Parsing happens in compilation
 | fibonacci | 16.133 ms   | 17.718 us      | 2.4047 us  |
 
 ### Individual - Wasmer/LLVM
-
-```
-fibonacci/wasmer-llvm/ab-compile            time:   [8.9680 s 9.0965 s 9.3370 s]
-fibonacci/wasmer-llvm/c-instantiate         time:   [34.642 us 35.391 us 36.364 us]
-fibonacci/wasmer-llvm/d-call                time:   [1.5052 us 1.5275 us 1.5430 us]
-```
 
 |           | ab. compile | c. instantiate | d. execute |
 | --------- | ----------- | -------------- | ---------- |
