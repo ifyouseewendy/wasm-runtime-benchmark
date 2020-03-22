@@ -83,7 +83,7 @@ pub fn prepare(wasm_bytes: &[u8]) -> InstanceHandle {
     instantiate(&moduleid)
 }
 
-pub fn call(instance: &mut InstanceHandle, arg: u32) -> u32 {
+pub fn execute(instance: &mut InstanceHandle, arg: u32) -> u32 {
     instance
         .run("run", &[arg.into()])
         .unwrap()
@@ -110,8 +110,8 @@ mod tests {
     }
 
     #[test]
-    fn test_call() {
+    fn test_execute() {
         let mut instance = prepare(&WASM);
-        assert_eq!(call(&mut instance, 10), 89);
+        assert_eq!(execute(&mut instance, 10), 89);
     }
 }

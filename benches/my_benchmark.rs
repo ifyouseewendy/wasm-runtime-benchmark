@@ -222,7 +222,7 @@ fn execute(c: &mut Criterion) {
             |b, &wasm| {
                 let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Singlepass);
                 let instance = wrapper.prepare(&wasm).unwrap();
-                b.iter(|| wrapper.call(&instance, black_box(10)))
+                b.iter(|| wrapper.execute(&instance, black_box(10)))
             },
         );
         group.sample_size(10).bench_with_input(
@@ -231,7 +231,7 @@ fn execute(c: &mut Criterion) {
             |b, &wasm| {
                 let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
                 let instance = wrapper.prepare(&wasm).unwrap();
-                b.iter(|| wrapper.call(&instance, black_box(10)))
+                b.iter(|| wrapper.execute(&instance, black_box(10)))
             },
         );
         group.sample_size(10).bench_with_input(
@@ -240,7 +240,7 @@ fn execute(c: &mut Criterion) {
             |b, &wasm| {
                 let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
                 let instance = wrapper.prepare(&wasm).unwrap();
-                b.iter(|| wrapper.call(&instance, black_box(10)))
+                b.iter(|| wrapper.execute(&instance, black_box(10)))
             },
         );
         group.sample_size(10).bench_with_input(
@@ -248,7 +248,7 @@ fn execute(c: &mut Criterion) {
             wasm,
             |b, &wasm| {
                 let mut instance = lucet_runner::prepare(&wasm);
-                b.iter(|| lucet_runner::call(&mut instance, 10))
+                b.iter(|| lucet_runner::execute(&mut instance, 10))
             },
         );
 

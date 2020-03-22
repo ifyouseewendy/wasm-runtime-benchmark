@@ -102,7 +102,7 @@ impl Wrapper {
         Ok(instance)
     }
 
-    pub fn call(&self, instance: &Instance, arg: u32) -> error::Result<u32> {
+    pub fn execute(&self, instance: &Instance, arg: u32) -> error::Result<u32> {
         let func: Func<u32, u32> = instance.func("run")?;
         let v = func.call(arg)?;
         Ok(v)
@@ -130,10 +130,10 @@ mod tests {
         assert_eq!(v, 8);
     }
     #[test]
-    fn test_call() {
+    fn test_execute() {
         let wrapper = wrapper();
         let instance = wrapper.prepare(&WASM).unwrap();
-        let v = wrapper.call(&instance, 5).unwrap();
+        let v = wrapper.execute(&instance, 5).unwrap();
         assert_eq!(v, 8);
     }
 }
