@@ -67,13 +67,12 @@ For a bunch of WebAssembly runtimes, in addition to comparing the above metrics,
 
 - performance with addition features, like WASI
 
-## Implementation (WIP)
+## Implementation
 
 ### Generate samples
 
 We should prepare a few wasm samples of different size and complication. You
-can check [wasm-sample](./wasm-sample/) for how to compile the sample programs
-into wasm.
+can check [wasm-sample](./wasm-sample/) for how to compile the sample programs into wasm.
 
 #### `add-one.wasm`
 
@@ -144,12 +143,7 @@ source:
 
 compile:
 
-It is compiled by
-[artichoke](https://github.com/artichoke/artichoke), which doesn't support
-`wasm32-unknown-unknown` yet. We have a hack for compiling a discount mruby
-script. The wasm file is compiled
-[here](https://github.com/ifyouseewendy/artichoke/tree/master/mruby-sys/vendor/mruby-bc7c5d3).
-To be noted, we are sending a plain integer to this wasm in benchmark,
+It is compiled by [artichoke](https://github.com/artichoke/artichoke), which doesn't support `wasm32-unknown-unknown` yet. We have a hack for compiling a discount mruby script. The wasm file is compiled [here](https://github.com/ifyouseewendy/artichoke/tree/master/mruby-sys/vendor/mruby-bc7c5d3). To be noted, we are sending a plain integer to this wasm in benchmark,
 which won't function properly, but should serve the purpose for compiling and
 executing a large and complicate wasm.
 
@@ -157,19 +151,21 @@ size: 1.2M
 
 ### Run benchmark
 
-To enable LLVM backend for Wasmer, follow https://gitlab.com/taricorp/llvm-sys.rs#compiling-llvm to install LLVM and
-`export LLVM_SYS_80_PREFIX=YOUR_PATH_TO_LLVM_DIR`
+Note:
 
-Run by
+* To enable LLVM backend for Wasmer, follow https://gitlab.com/taricorp/llvm-sys.rs#compiling-llvm to install LLVM and
+  `export LLVM_SYS_80_PREFIX=YOUR_PATH_TO_LLVM_DIR`
+* Benchmark with LLVM involved usually takes >10 mins
+* Configure `criterion_group!` in [benches/my_benchmark.rs](./benches/my_benchmark.rs) to run benchmark selectively
+* Create a `tmp` and `tmp/lucet` for the AOT cases.
+
+Run
 
 ```
 $ cargo bench
 ```
 
-You may need to manually create a `tmp/lucet` folder for saving caching
-artifacts.
-
-Check result
+Check result at STDOUT or
 
 ```
 $ open target/criterion/report/index.html
@@ -184,21 +180,21 @@ TODO
 
 ### Individual - Wasmer/Singlepass
 
-```
-fibonacci/wasmer-singlepass/ab-compile      time:   [7.5588 ms 7.6799 ms 7.8605 ms]
-fibonacci/wasmer-singlepass/c-instantiate   time:   [18.345 us 18.656 us 19.149 us]
-fibonacci/wasmer-singlepass/d-call          time:   [6.2023 us 6.2977 us 6.3575 us]
-```
+|           | ab. compile | c. instantiate | d. execute |
+| --------- | ----------- | -------------- | ---------- |
+| add-one   | 907.89 us   | 11.880 us      | 1.5622 us  |
+| nobody    | 3.7359 ms   | 15.936 us      | 57.256 us  |
+| fibonacci | 6.7746 ms   | 18.522 us      | 6.8601 us  |
 
-* Parsing happens in compilation
+Parsing happens in compilation
 
 ### Individual - Wasmer/Cranelift
 
-```
-fibonacci/wasmer-cranelift/ab-compile       time:   [23.255 ms 23.894 ms 24.275 ms]
-fibonacci/wasmer-cranelift/c-instantiate    time:   [18.794 us 19.590 us 20.477 us]
-fibonacci/wasmer-cranelift/d-call           time:   [2.2077 us 2.2318 us 2.2778 us]
-```
+|           | ab. compile | c. instantiate | d. execute |
+| --------- | ----------- | -------------- | ---------- |
+| add-one   | 2.7364 ms   | 11.717 us      | 764.69 ns  |
+| nobody    | 8.1322 ms   | 15.696 us      | 25.079 us  |
+| fibonacci | 16.133 ms   | 17.718 us      | 2.4047 us  |
 
 ### Individual - Wasmer/LLVM
 
@@ -208,28 +204,33 @@ fibonacci/wasmer-llvm/c-instantiate         time:   [34.642 us 35.391 us 36.364 
 fibonacci/wasmer-llvm/d-call                time:   [1.5052 us 1.5275 us 1.5430 us]
 ```
 
-* The data point is gathered by waiting more than 10 min. I suspect there is something weird happening. I've reported to WASMER team.
-* The performance of `call` is the best so far, but the `compile` time is too slow to be accepted
+|           | ab. compile | c. instantiate | d. execute |
+| --------- | ----------- | -------------- | ---------- |
+| add-one   | 1.1674 s    | 17.606 us      | 780.84 ns  |
+| nobody    | 5.8321 s    | 35.037 us      | 13.068 us  |
+| fibonacci | 9.1097 s    | 35.125 us      | 1.9549 us  |
+
+The performance of `execute` is the best so far, but the `compile` time is too slow to be accepted
 
 ### Individual - Lucet
 
-```
-fibonacci/lucet/ab-compile      time:   [102.94 ms 114.69 ms 124.16 ms]
-fibonacci/lucet/c-instantiate   time:   [167.15 us 174.82 us 185.01 us]
-fibonacci/lucet/d-call          time:   [10.260 us 10.361 us 10.513 us]
-```
+|           | ab. compile | c. instantiate | d. execute |
+| --------- | ----------- | -------------- | ---------- |
+| add-one   | 19.614 ms   | 160.52 us      | 9.9157 us  |
+| nobody    | 52.497 ms   | 156.13 us      | 27.367 us  |
+| fibonacci | 101.63 ms   | 157.93 us      | 11.104 us  |
 
 ### Comparison - JIT
 
 > a+b+c+d
 
-```
-fibonacci/wasmer-singlepass   time:   [7.7525 ms 8.3134 ms 9.3078 ms]
-fibonacci/wasmer-cranelift    time:   [32.647 ms 34.320 ms 35.592 ms]
-fibonacci/wasmer-llvm         time:   [8.9640 s  9.0053 s  9.0913 s ]
-```
+|           | wasmer/singlepass | wasmer/cranelift | wasmer/llvm | lucet |
+| --------- | ----------------- | ---------------- | ----------- | ----- |
+| add-one   | 1.1253 ms         | 3.4631 ms        | 1.2624 s    | NA    |
+| nobody    | 4.8221 ms         | 10.350 ms        | 5.9734 s    | NA    |
+| fibonacci | 7.2267 ms         | 19.296 ms        | 10.183 s    | NA    |
 
-* Lucet doens't support or design for JIT. We can use its AOT total performance as a comparison
+Lucet doens't support or is not designed for JIT
 
 ### Comparison - AOT
 
@@ -237,71 +238,57 @@ fibonacci/wasmer-llvm         time:   [8.9640 s  9.0053 s  9.0913 s ]
 
 > a+b+b'+c'+c+d
 
-```
-fibonacci/wasmer-singlepass   time:   [28.142 ms 29.992 ms 31.050 ms]
-fibonacci/wasmer-cranelift    time:   [53.070 ms 59.347 ms 68.896 ms]
-fibonacci/wasmer-llvm         time:   [9.4447 s  9.6621 s  9.8105 s ]
-fibonacci/lucet               time:   [107.60 ms 110.18 ms 113.12 ms]
-```
+|           | wasmer/singlepass | wasmer/cranelift | wasmer/llvm | lucet     |
+| --------- | ----------------- | ---------------- | ----------- | --------- |
+| add-one   | 1.7526 ms         | 4.0685 ms        | 1.1734 s    | 18.195 ms |
+| nobody    | 6.4503 ms         | 11.218 ms        | 5.2861 s    | 49.371 ms |
+| fibonacci | 11.781 ms         | 19.107 ms        | 9.9057 s    | 104.42 ms |
 
-* By comparing AOT total with JIT, we can see overhead introduced by `b'+c'` for Singlepass and Cranelift case.
+By comparing AOT total with JIT, we can see the overhead introduced by `b'+c'` 
 
 #### AOT compile (time)
 
 > a+b+b'
 
-```
-fibonacci/wasmer-singlepass   time:   [21.753 ms 22.970 ms 24.043 ms]
-fibonacci/wasmer-cranelift    time:   [44.587 ms 47.660 ms 49.897 ms]
-fibonacci/wasmer-llvm         time:   [11.878 s  12.099 s  12.393 s ]
-fibonacci/lucet               time:   [104.69 ms 106.19 ms 108.53 ms]
-```
+|              | wasmer/singlepass | wasmer/cranelift | wasmer/llvm | lucet     |
+| ------------ | ----------------- | ---------------- | ----------- | --------- |
+| add-one      | 1.0323 ms         | 3.0077 ms        | 1.1484 s    | 16.965 ms |
+| nobody       | 5.4153 ms         | 8.9157 ms        | 5.2498 s    | 47.605 ms |
+| fibonacci    | 8.7047 ms         | 19.099 ms        | 9.6198 s    | 102.75 ms |
+| mruby-script | 561.88 ms         | ~38.57 s         | ~34.24 s    | ~34.46 s  |
+
+`~` means an estimation based on the bench log output. The actual bench program is not finished.
 
 #### AOT compile (space)
 
 > b'
 
-```
-fibonacci/wasmer-singlepass   size: 2.2M
-fibonacci/wasmer-cranelift    size: 1.9M
-fibonacci/wasmer-llvm         size: 1.8M
-fibonacci/lucet               size: 92K
-```
+The size of intermediate files different runtimes compile to, which is configured to be in `tmp/`. The following numbers are generated by clean the `tmp/` (You need to create an empty `tmp/lucet` for lucet cache), run the bench, and check the cached file size in `tmp/`. 
 
-With stripped wasm (`wasm-strip fibonacci.wasm`), removing the unnecessary custom data
-section and reducing the file size from 1.8M to 16K
-
-```
-fibonacci/wasmer-singlepass   size: 362k
-fibonacci/wasmer-cranelift    size: 98k
-fibonacci/wasmer-llvm         size: 43k
-fibonacci/lucet               size: 86K
-```
+|              | source | wasmer/singlepass | wasmer/cranelift | wasmer/llvm | lucet |
+| ------------ | ------ | ----------------- | ---------------- | ----------- | ----- |
+| add-one      | 2.1 K  | 41 K              | 18 K             | 13 K        | 21 K  |
+| nobody       | 9.3 K  | 222 K             | 62 K             | 30 K        | 58 K  |
+| fibonacci    | 16 K   | 362 K             | 98 K             | 43 K        | 86 K  |
+| mruby-script | 1.2 M  | 24 M              | /                | /           | /     |
 
 #### AOT execution
 
 > c'+c+d
 
-```
-fibonacci/wasmer-singlepass   time:   [8.0749 ms 8.2386 ms 8.3627 ms]
-fibonacci/wasmer-cranelift    time:   [6.1068 ms 6.2310 ms 6.4169 ms]
-fibonacci/wasmer-llvm         time:   [5.9600 ms 6.0994 ms 6.2290 ms]
-fibonacci/lucet               time:   [197.21 us 201.77 us 206.27 us]
-```
-
-* `c'` here means a DLopen for lucet and loading from file cache for Wasmer.
-* Lucet runs amazingly fast, even this has dynamic linking included. I wonder
-  if there is any compiler optimization kicks in.
-- [ ] Double check lucet number
+|           | wasmer/singlepass | wasmer/cranelift | wasmer/llvm | lucet     |
+| --------- | ----------------- | ---------------- | ----------- | --------- |
+| add-one   | 244.24 us         | 89.810 us        | 904.55 us   | 175.81 us |
+| nobody    | 1.2892 ms         | 202.61 us        | 2.1254 ms   | 205.35 us |
+| fibonacci | 1.9484 ms         | 221.65 us        | 2.0697 ms   | 194.29 us |
 
 ### Comparison - Pure execution
 
 > d
 
-```
-fibonacci/rust-native         time:   [181.79 ns 192.94 ns 203.50 ns]
-fibonacci/wasmer-singlepass   time:   [5.9822 us 6.0379 us 6.1314 us]
-fibonacci/wasmer-cranelift    time:   [2.3717 us 2.4430 us 2.5936 us]
-fibonacci/wasmer-llvm         time:   [1.5595 us 1.5826 us 1.6181 us]
-fibonacci/lucet               time:   [10.748 us 10.884 us 10.999 us]
-```
+|           | native    | wasmer/singlepass | wasmer/cranelift | wasmer/llvm | lucet     |
+| --------- | --------- | ----------------- | ---------------- | ----------- | --------- |
+| add-one   | 702.20 ps | 1.4755 us         | 754.35 ns        | 757.57 ns   | 9.8288 us |
+| fibonacci | 950.04 ns | 5.9847 us         | 2.1972 us        | 1.5783 us   | 10.981 us |
+| nobody    | 950.85 ns | 54.357 us         | 24.906 us        | 12.975 us   | 28.883 us |
+
