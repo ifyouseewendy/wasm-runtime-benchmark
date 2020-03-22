@@ -166,6 +166,9 @@ Run by
 $ cargo bench
 ```
 
+You may need to manually create a `tmp/lucet` folder for saving caching
+artifacts.
+
 Check result
 
 ```

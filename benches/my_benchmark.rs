@@ -1,6 +1,7 @@
 use criterion::*;
+use fibonacci;
 use lazy_static::lazy_static;
-use rust_fibonacci as fibonacci;
+use nbody;
 use wasm_runtime_benchmark::{lucet_runner, wasmer_runner};
 
 use std::collections::HashMap;
@@ -20,10 +21,10 @@ lazy_static! {
             "nbody",
             &include_bytes!("../wasm-sample/nbody.wasm")[..],
         );
-        // So slow for cranelift and LLVM to compile
+        // Too slow to compile
         // map.insert(
         //     "mruby-script",
-        //     &include_bytes!("../wasm-sample/discount-script-mruby.wasm")[..],
+        //     &include_bytes!("../wasm-sample/mruby-script.wasm")[..],
         // );
         map
     };
@@ -55,121 +56,204 @@ fn jit(c: &mut Criterion) {
                 });
             },
         );
-        // group.sample_size(10).bench_with_input(
-        //     BenchmarkId::new(name.to_owned(), "wasmer-llvm"),
-        //     wasm,
-        //     |b, &wasm| {
-        //         b.iter(|| {
-        //             let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
-        //             wrapper.jit(&wasm, black_box(10))
-        //         });
-        //     },
-        // );
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "wasmer-llvm"),
+            wasm,
+            |b, &wasm| {
+                b.iter(|| {
+                    let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
+                    wrapper.jit(&wasm, black_box(10))
+                });
+            },
+        );
 
         group.finish();
     }
 }
 
-fn aot_c(c: &mut Criterion) {
-    let benchmark = Benchmark::new("rust-native", |b| b.iter(|| black_box(fibonacci::run(10))))
-        .sample_size(10)
-        .with_function("wasmer-singlepass", |b| {
-            let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Singlepass);
-            b.iter(|| black_box(wrapper.aot_c(&WASM).unwrap()))
-        })
-        .with_function("wasmer-cranelift", |b| {
-            let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
-            b.iter(|| black_box(wrapper.aot_c(&WASM).unwrap()))
-        })
-        .with_function("wasmer-llvm", |b| {
-            let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
-            b.iter(|| black_box(wrapper.aot_c(&WASM)))
-        })
-        .with_function("lucet", |b| {
-            b.iter(|| black_box(lucet_runner::aot_c(&WASM)))
-        });
+fn aot_compile(c: &mut Criterion) {
+    for (name, wasm) in SAMPLES.iter() {
+        let mut group = c.benchmark_group("aot_compile");
 
-    c.bench("fibonacci-aot-c", benchmark);
-}
-
-fn aot_e(c: &mut Criterion) {
-    let benchmark = Benchmark::new("rust-native", |b| b.iter(|| black_box(fibonacci::run(10))))
-        .sample_size(10)
-        .with_function("wasmer-singlepass", |b| {
-            let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Singlepass);
-            let key = wrapper.aot_c(&WASM).unwrap();
-            b.iter(|| wrapper.aot_e(&key, black_box(10)))
-        })
-        .with_function("wasmer-cranelift", |b| {
-            let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
-            let key = wrapper.aot_c(&WASM).unwrap();
-            b.iter(|| wrapper.aot_e(&key, black_box(10)))
-        })
-        .with_function("lucet", |b| {
-            let moduleid = lucet_runner::aot_c(&WASM);
-            b.iter(|| lucet_runner::aot_e(&moduleid, black_box(10)))
-        })
-        .with_function("wasmer-llvm", |b| {
-            let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
-            let key = wrapper.aot_c(&WASM).unwrap();
-            b.iter(|| wrapper.aot_e(&key, black_box(10)))
-        });
-
-    c.bench("fibonacci-aot-e", benchmark);
-}
-
-fn aot_t(c: &mut Criterion) {
-    let benchmark = Benchmark::new("rust-native", |b| b.iter(|| black_box(fibonacci::run(10))))
-        .sample_size(10)
-        .with_function("wasmer-singlepass", |b| {
-            b.iter(|| {
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "wasmer-singlepass"),
+            wasm,
+            |b, &wasm| {
                 let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Singlepass);
-                wrapper.aot_t(&WASM, black_box(10))
-            })
-        })
-        .with_function("wasmer-cranelift", |b| {
-            b.iter(|| {
+                b.iter(|| black_box(wrapper.aot_c(&wasm).unwrap()))
+            },
+        );
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "wasmer-cranelift"),
+            wasm,
+            |b, &wasm| {
                 let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
-                wrapper.aot_t(&WASM, black_box(10))
-            })
-        })
-        .with_function("wasmer-llvm", |b| {
-            b.iter(|| {
+                b.iter(|| black_box(wrapper.aot_c(&wasm).unwrap()))
+            },
+        );
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "wasmer-llvm"),
+            wasm,
+            |b, &wasm| {
                 let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
-                wrapper.aot_t(&WASM, black_box(10))
-            })
-        })
-        .with_function("lucet", |b| {
-            b.iter(|| lucet_runner::aot_t(&WASM, black_box(10)))
-        });
+                b.iter(|| black_box(wrapper.aot_c(&wasm)))
+            },
+        );
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "lucet"),
+            wasm,
+            |b, &wasm| b.iter(|| black_box(lucet_runner::aot_c(&wasm))),
+        );
 
-    c.bench("fibonacci-aot", benchmark);
+        group.finish();
+    }
 }
 
-fn call(c: &mut Criterion) {
-    let benchmark = Benchmark::new("rust-native", |b| b.iter(|| black_box(fibonacci::run(10))))
-        .sample_size(10)
-        .with_function("wasmer-singlepass", |b| {
-            let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Singlepass);
-            let instance = wrapper.prepare(&WASM).unwrap();
-            b.iter(|| wrapper.call(&instance, black_box(10)))
-        })
-        .with_function("wasmer-cranelift", |b| {
-            let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
-            let instance = wrapper.prepare(&WASM).unwrap();
-            b.iter(|| wrapper.call(&instance, black_box(10)))
-        })
-        .with_function("wasmer-llvm", |b| {
-            let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
-            let instance = wrapper.prepare(&WASM).unwrap();
-            b.iter(|| wrapper.call(&instance, black_box(10)))
-        })
-        .with_function("lucet", |b| {
-            let mut instance = lucet_runner::prepare(&WASM);
-            b.iter(|| lucet_runner::call(&mut instance, 10))
-        });
+fn aot_execute(c: &mut Criterion) {
+    for (name, wasm) in SAMPLES.iter() {
+        let mut group = c.benchmark_group("aot_execute");
 
-    c.bench("fibonacci-call", benchmark);
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "wasmer-singlepass"),
+            wasm,
+            |b, &wasm| {
+                let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Singlepass);
+                let key = wrapper.aot_c(&wasm).unwrap();
+                b.iter(|| wrapper.aot_e(&key, black_box(10)))
+            },
+        );
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "wasmer-cranelift"),
+            wasm,
+            |b, &wasm| {
+                let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
+                let key = wrapper.aot_c(&wasm).unwrap();
+                b.iter(|| wrapper.aot_e(&key, black_box(10)))
+            },
+        );
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "wasmer-llvm"),
+            wasm,
+            |b, &wasm| {
+                let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
+                let key = wrapper.aot_c(&wasm).unwrap();
+                b.iter(|| wrapper.aot_e(&key, black_box(10)))
+            },
+        );
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "lucet"),
+            wasm,
+            |b, &wasm| {
+                let moduleid = lucet_runner::aot_c(&wasm);
+                b.iter(|| lucet_runner::aot_e(&moduleid, black_box(10)))
+            },
+        );
+
+        group.finish();
+    }
+}
+
+fn aot_total(c: &mut Criterion) {
+    for (name, wasm) in SAMPLES.iter() {
+        let mut group = c.benchmark_group("aot_total");
+
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "wasmer-singlepass"),
+            wasm,
+            |b, &wasm| {
+                b.iter(|| {
+                    let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Singlepass);
+                    wrapper.aot_t(&wasm, black_box(10))
+                })
+            },
+        );
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "wasmer-cranelift"),
+            wasm,
+            |b, &wasm| {
+                b.iter(|| {
+                    let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
+                    wrapper.aot_t(&wasm, black_box(10))
+                })
+            },
+        );
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "wasmer-llvm"),
+            wasm,
+            |b, &wasm| {
+                b.iter(|| {
+                    let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
+                    wrapper.aot_t(&wasm, black_box(10))
+                })
+            },
+        );
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "lucet"),
+            wasm,
+            |b, &wasm| b.iter(|| lucet_runner::aot_t(&wasm, black_box(10))),
+        );
+
+        group.finish();
+    }
+}
+
+fn execute(c: &mut Criterion) {
+    for (name, wasm) in SAMPLES.iter() {
+        let mut group = c.benchmark_group("execute");
+
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "rust-native"),
+            wasm,
+            |b, &wasm| match name {
+                &"add-one" => {
+                    fn add_one(n: u32) -> u32 {
+                        n + 1
+                    }
+                    b.iter(|| black_box(add_one(10)))
+                }
+                &"fibonacci" => b.iter(|| black_box(fibonacci::run(10))),
+                &"nbody" => b.iter(|| unsafe { black_box(nbody::run(10)) }),
+                _ => unreachable!(),
+            },
+        );
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "wasmer-singlepass"),
+            wasm,
+            |b, &wasm| {
+                let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Singlepass);
+                let instance = wrapper.prepare(&wasm).unwrap();
+                b.iter(|| wrapper.call(&instance, black_box(10)))
+            },
+        );
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "wasmer-cranelift"),
+            wasm,
+            |b, &wasm| {
+                let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
+                let instance = wrapper.prepare(&wasm).unwrap();
+                b.iter(|| wrapper.call(&instance, black_box(10)))
+            },
+        );
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "wasmer-llvm"),
+            wasm,
+            |b, &wasm| {
+                let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
+                let instance = wrapper.prepare(&wasm).unwrap();
+                b.iter(|| wrapper.call(&instance, black_box(10)))
+            },
+        );
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "lucet"),
+            wasm,
+            |b, &wasm| {
+                let mut instance = lucet_runner::prepare(&wasm);
+                b.iter(|| lucet_runner::call(&mut instance, 10))
+            },
+        );
+
+        group.finish();
+    }
 }
 
 fn wasmer_singlepass(c: &mut Criterion) {
@@ -253,5 +337,11 @@ fn lucet(c: &mut Criterion) {
     c.bench("fibonacci/lucet", benchmark);
 }
 
-criterion_group!(benches, jit);
+criterion_group!(
+    benches, // jit,
+    // aot_compile,
+    // aot_execute,
+    aot_total,
+    // execute
+);
 criterion_main!(benches);
