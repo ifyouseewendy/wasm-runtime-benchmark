@@ -257,91 +257,149 @@ fn execute(c: &mut Criterion) {
 }
 
 fn wasmer_singlepass(c: &mut Criterion) {
-    let benchmark = Benchmark::new("compile", |b| {
-        let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Singlepass);
-        b.iter(|| black_box(wrapper.compile(&WASM)))
-    })
-    .sample_size(10)
-    .with_function("instantiate", |b| {
-        let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Singlepass);
-        let module = wrapper.compile(&WASM);
-        b.iter(|| black_box(wrapper.instantiate(&module)))
-    })
-    .with_function("call", |b| {
-        let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Singlepass);
-        let module = wrapper.compile(&WASM);
-        let instance = wrapper.instantiate(&module).unwrap();
-        b.iter(|| black_box(wrapper.call(&instance, 10)))
-    });
+    for (name, wasm) in SAMPLES.iter() {
+        let mut group = c.benchmark_group("wasmer_singlepass");
 
-    c.bench("fibonacci/wasmer-singlepass", benchmark);
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "compile"),
+            wasm,
+            |b, &wasm| {
+                let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Singlepass);
+                b.iter(|| black_box(wrapper.compile(&wasm)))
+            },
+        );
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "instantiate"),
+            wasm,
+            |b, &wasm| {
+                let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Singlepass);
+                let module = wrapper.compile(&wasm);
+                b.iter(|| black_box(wrapper.instantiate(&module)))
+            },
+        );
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "execute"),
+            wasm,
+            |b, &wasm| {
+                let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Singlepass);
+                let module = wrapper.compile(&wasm);
+                let instance = wrapper.instantiate(&module).unwrap();
+                b.iter(|| black_box(wrapper.execute(&instance, 10)))
+            },
+        );
+        group.finish();
+    }
 }
 
 fn wasmer_cranelift(c: &mut Criterion) {
-    let benchmark = Benchmark::new("compile", |b| {
-        let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
-        b.iter(|| black_box(wrapper.compile(&WASM)))
-    })
-    .sample_size(10)
-    .with_function("instantiate", |b| {
-        let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
-        let module = wrapper.compile(&WASM);
-        b.iter(|| black_box(wrapper.instantiate(&module)))
-    })
-    .with_function("call", |b| {
-        let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
-        let module = wrapper.compile(&WASM);
-        let instance = wrapper.instantiate(&module).unwrap();
-        b.iter(|| black_box(wrapper.call(&instance, 10)))
-    });
+    for (name, wasm) in SAMPLES.iter() {
+        let mut group = c.benchmark_group("wasmer_cranelift");
 
-    c.bench("fibonacci/wasmer-cranelift", benchmark);
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "compile"),
+            wasm,
+            |b, &wasm| {
+                let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
+                b.iter(|| black_box(wrapper.compile(&wasm)))
+            },
+        );
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "instantiate"),
+            wasm,
+            |b, &wasm| {
+                let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
+                let module = wrapper.compile(&wasm);
+                b.iter(|| black_box(wrapper.instantiate(&module)))
+            },
+        );
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "execute"),
+            wasm,
+            |b, &wasm| {
+                let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::Cranelift);
+                let module = wrapper.compile(&wasm);
+                let instance = wrapper.instantiate(&module).unwrap();
+                b.iter(|| black_box(wrapper.execute(&instance, 10)))
+            },
+        );
+        group.finish();
+    }
 }
 
 fn wasmer_llvm(c: &mut Criterion) {
-    let benchmark = Benchmark::new("compile", |b| {
-        let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
-        b.iter(|| black_box(wrapper.compile(&WASM)))
-    })
-    .sample_size(10)
-    .with_function("instantiate", |b| {
-        let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
-        let module = wrapper.compile(&WASM);
-        b.iter(|| black_box(wrapper.instantiate(&module)))
-    })
-    .with_function("call", |b| {
-        let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
-        let module = wrapper.compile(&WASM);
-        let instance = wrapper.instantiate(&module).unwrap();
-        b.iter(|| black_box(wrapper.call(&instance, 10)))
-    });
+    for (name, wasm) in SAMPLES.iter() {
+        let mut group = c.benchmark_group("wasmer_llvm");
 
-    c.bench("fibonacci/wasmer-llvm", benchmark);
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "compile"),
+            wasm,
+            |b, &wasm| {
+                let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
+                b.iter(|| black_box(wrapper.compile(&wasm)))
+            },
+        );
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "instantiate"),
+            wasm,
+            |b, &wasm| {
+                let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
+                let module = wrapper.compile(&wasm);
+                b.iter(|| black_box(wrapper.instantiate(&module)))
+            },
+        );
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "execute"),
+            wasm,
+            |b, &wasm| {
+                let wrapper = wasmer_runner::Wrapper::new(wasmer_runtime::Backend::LLVM);
+                let module = wrapper.compile(&wasm);
+                let instance = wrapper.instantiate(&module).unwrap();
+                b.iter(|| black_box(wrapper.execute(&instance, 10)))
+            },
+        );
+        group.finish();
+    }
 }
 
 fn lucet(c: &mut Criterion) {
-    let benchmark = Benchmark::new("compile", |b| {
-        b.iter(|| black_box(lucet_runner::compile(&WASM)))
-    })
-    .sample_size(10)
-    .with_function("instantiate", |b| {
-        let moduleid = lucet_runner::compile(&WASM);
-        b.iter(|| black_box(lucet_runner::instantiate(&moduleid)))
-    })
-    .with_function("call", |b| {
-        let moduleid = lucet_runner::compile(&WASM);
-        let mut instance = lucet_runner::instantiate(&moduleid);
-        b.iter(|| black_box(lucet_runner::call(&mut instance, 10)))
-    });
+    for (name, wasm) in SAMPLES.iter() {
+        let mut group = c.benchmark_group("lucet");
 
-    c.bench("fibonacci/lucet", benchmark);
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "compile"),
+            wasm,
+            |b, &wasm| b.iter(|| black_box(lucet_runner::compile(&wasm))),
+        );
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "instantiate"),
+            wasm,
+            |b, &wasm| {
+                let moduleid = lucet_runner::compile(&wasm);
+                b.iter(|| black_box(lucet_runner::instantiate(&moduleid)))
+            },
+        );
+        group.sample_size(10).bench_with_input(
+            BenchmarkId::new(name.to_owned(), "execute"),
+            wasm,
+            |b, &wasm| {
+                let moduleid = lucet_runner::compile(&wasm);
+                let mut instance = lucet_runner::instantiate(&moduleid);
+                b.iter(|| black_box(lucet_runner::execute(&mut instance, 10)))
+            },
+        );
+        group.finish();
+    }
 }
 
 criterion_group!(
     benches, // jit,
     // aot_compile,
     // aot_execute,
-    aot_total,
-    // execute
+    // aot_total,
+    // execute,
+    // wasmer_singlepass,
+    // wasmer_cranelift,
+    // wasmer_llvm,
+    lucet
 );
 criterion_main!(benches);
